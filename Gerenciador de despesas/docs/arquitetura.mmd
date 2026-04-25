@@ -1,0 +1,21 @@
+```mermaid
+flowchart LR
+    C[Cliente HTTP]
+
+    subgraph APP[FastAPI]
+        API[Camada API\nRouters/Controllers]
+        SVC[Camada Service\nRegras de Negocio]
+        REP[Camada Repository\nAcesso a Dados]
+    end
+
+    DB[(SQLite)]
+
+    C -->|1. Requisicao HTTP (JSON)| API
+    API -->|2. DTO validado| SVC
+    SVC -->|3. Consulta/Persistencia| REP
+    REP -->|4. SQL| DB
+    DB -->|5. Registros| REP
+    REP -->|6. Entidades| SVC
+    SVC -->|7. Resultado de negocio| API
+    API -->|8. Resposta HTTP (JSON)| C
+```
