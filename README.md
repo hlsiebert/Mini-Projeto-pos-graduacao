@@ -64,10 +64,25 @@ pip install -r requirements.txt
 Caso ainda nao exista:
 
 ```bash
-pip install fastapi uvicorn pydantic pytest
+pip install fastapi uvicorn pydantic pytest python-dotenv
 ```
 
-### 4) Subir a API
+### 4) Configurar variaveis de ambiente
+
+Copie o arquivo `.env.example` para `.env` e ajuste os valores locais:
+
+```bash
+cp .env.example .env
+```
+
+Variaveis disponiveis:
+
+- `FRONTEND_ORIGINS`: origens permitidas no CORS, separadas por virgula.
+  Exemplo: `http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174`
+
+> O arquivo `.env` esta no `.gitignore` para evitar versionamento de dados sensiveis.
+
+### 5) Subir a API
 
 ```bash
 uvicorn app.main:app --reload
@@ -114,4 +129,3 @@ Documentacao interativa:
 - definir contrato dos endpoints (OpenAPI)
 - adicionar migration tool (ex.: Alembic)
 - preparar ambiente de homologacao
-
