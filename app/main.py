@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+from app.api.routes import router as despesas_router
+
 
 class HealthResponse(BaseModel):
     status: str
@@ -10,6 +12,7 @@ class HealthResponse(BaseModel):
 
 
 app = FastAPI(title="Gerenciador de Despesas API")
+app.include_router(despesas_router)
 
 
 @app.get("/health", response_model=HealthResponse)
