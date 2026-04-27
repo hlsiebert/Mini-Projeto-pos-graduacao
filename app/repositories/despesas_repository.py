@@ -54,6 +54,30 @@ class DespesaRepository:
             conn.commit()
 
     @staticmethod
+    def _build_filtros_sql(filtros: BuscarDespesa) -> tuple[str, list[object]]:
+        clauses: list[str] = []
+        params: list[object] = []
+
+        if filtros.id is not None:
+            clauses.append("id = ?")
+            params.append(str(filtros.id))
+        if filtros.forma_pagamento is not None:
+            clauses.append("forma_pagamento = ?")
+            params.append(filtros.forma_pagamento.value)
+        if filtros.categoria is not None:
+            clauses.append("categoria = ?")
+            params.append(filtros.categoria)
+        if filtros.data_inicio is not None:
+            clauses.append("data_transacao >= ?")
+            params.append(filtros.data_inicio.isoformat())
+        if filtros.data_fim is not None:
+            clauses.append("data_transacao <= ?")
+            params.append(filtros.data_fim.isoformat())
+
+        where_sql = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        return where_sql, params
+
+    @staticmethod
     def _row_to_despesa(row: sqlite3.Row) -> Despesa:
         return Despesa(
             id=UUID(row["id"]),
@@ -96,32 +120,12 @@ class DespesaRepository:
 
     def list(self, filtros: BuscarDespesa | None = None) -> list[Despesa]:
         filtros = filtros or BuscarDespesa()
-
-        clauses: list[str] = []
-        params: list[object] = []
-
-        if filtros.id is not None:
-            clauses.append("id = ?")
-            params.append(str(filtros.id))
-        if filtros.forma_pagamento is not None:
-            clauses.append("forma_pagamento = ?")
-            params.append(filtros.forma_pagamento.value)
-        if filtros.categoria is not None:
-            clauses.append("categoria = ?")
-            params.append(filtros.categoria)
-        if filtros.data_inicio is not None:
-            clauses.append("data_transacao >= ?")
-            params.append(filtros.data_inicio.isoformat())
-        if filtros.data_fim is not None:
-            clauses.append("data_transacao <= ?")
-            params.append(filtros.data_fim.isoformat())
-
-        where_sql = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        where_sql, params = self._build_filtros_sql(filtros)
         sql = f"""
             SELECT id, descricao, valor, data_transacao, categoria, forma_pagamento
             FROM despesas
             {where_sql}
-            ORDER BY data_transacao DESC
+            ORDER BY data_transacao DESC, id DESC
             LIMIT ? OFFSET ?
         """
         params.extend([filtros.limit, filtros.offset])
@@ -130,6 +134,18 @@ class DespesaRepository:
             rows = conn.execute(sql, params).fetchall()
 
         return [self._row_to_despesa(row) for row in rows]
+
+    def count(self, filtros: BuscarDespesa | None = None) -> int:
+        filtros = filtros or BuscarDespesa()
+        where_sql, params = self._build_filtros_sql(filtros)
+        sql = f"""
+            SELECT COUNT(*) AS total
+            FROM despesas
+            {where_sql}
+        """
+        with self._connect() as conn:
+            row = conn.execute(sql, params).fetchone()
+        return int(row["total"]) if row is not None else 0
 
     def get_by_id(self, despesa_id: UUID) -> Despesa | None:
         with self._connect() as conn:

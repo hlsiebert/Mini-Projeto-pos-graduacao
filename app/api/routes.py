@@ -7,7 +7,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from app.models.despesas import AtualizarDespesa, BuscarDespesa, CriarDespesa, FormaPagamento
 from app.repositories.despesas_repository import Despesa, DespesaRepository
@@ -25,6 +25,31 @@ class DespesaResponse(BaseModel):
     data_transacao: date
     categoria: str
     forma_pagamento: FormaPagamento
+
+
+class PaginacaoResponse(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    has_next: bool
+
+
+class ListarDespesasResponse(BaseModel):
+    items: list[DespesaResponse]
+    paginacao: PaginacaoResponse
+
+
+def _safe_validation_errors(exc: ValidationError) -> list[dict[str, object]]:
+    safe_errors: list[dict[str, object]] = []
+    for error in exc.errors():
+        safe_errors.append(
+            {
+                "loc": error.get("loc"),
+                "msg": error.get("msg"),
+                "type": error.get("type"),
+            }
+        )
+    return safe_errors
 
 
 def get_repository() -> DespesaRepository:
@@ -51,7 +76,7 @@ def criar_despesa(
     return _to_response(despesa)
 
 
-@router.get("", response_model=list[DespesaResponse], status_code=status.HTTP_200_OK)
+@router.get("", response_model=ListarDespesasResponse, status_code=status.HTTP_200_OK)
 def listar_despesas(
     id: UUID | None = None,
     forma_pagamento: FormaPagamento | None = None,
@@ -61,18 +86,34 @@ def listar_despesas(
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     repository: DespesaRepository = Depends(get_repository),
-) -> list[DespesaResponse]:
-    filtros = BuscarDespesa(
-        id=id,
-        forma_pagamento=forma_pagamento,
-        categoria=categoria,
-        data_inicio=data_inicio,
-        data_fim=data_fim,
-        limit=limit,
-        offset=offset,
-    )
+) -> ListarDespesasResponse:
+    try:
+        filtros = BuscarDespesa(
+            id=id,
+            forma_pagamento=forma_pagamento,
+            categoria=categoria,
+            data_inicio=data_inicio,
+            data_fim=data_fim,
+            limit=limit,
+            offset=offset,
+        )
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=_safe_validation_errors(exc),
+        ) from exc
+
     despesas = repository.list(filtros)
-    return [_to_response(despesa) for despesa in despesas]
+    total = repository.count(filtros)
+    return ListarDespesasResponse(
+        items=[_to_response(despesa) for despesa in despesas],
+        paginacao=PaginacaoResponse(
+            total=total,
+            limit=limit,
+            offset=offset,
+            has_next=(offset + len(despesas)) < total,
+        ),
+    )
 
 
 @router.get("/{despesa_id}", response_model=DespesaResponse, status_code=status.HTTP_200_OK)

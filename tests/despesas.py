@@ -15,7 +15,9 @@ from app.repositories.despesas_repository import DespesaRepository
 
 @pytest.fixture
 def repository() -> DespesaRepository:
-    db_path = Path(f"test_{uuid4().hex}.db")
+    temp_dir = Path("tests") / ".tmp"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    db_path = temp_dir / f"test_{uuid4().hex}.db"
     repo = DespesaRepository(db_path=str(db_path))
     try:
         yield repo
@@ -89,13 +91,20 @@ def test_listar_despesas_deve_retornar_itens_criados_e_aceitar_filtro(
         },
     )
 
-    response = client.get("/despesas", params={"forma_pagamento": "credito", "limit": 20, "offset": 0})
+    response = client.get(
+        "/despesas",
+        params={"forma_pagamento": "credito", "limit": 20, "offset": 0},
+    )
 
     assert response.status_code == 200
     body = response.json()
-    assert len(body) == 1
-    assert body[0]["descricao"] == "Streaming mensal"
-    assert body[0]["forma_pagamento"] == "credito"
+    assert body["paginacao"]["total"] == 1
+    assert body["paginacao"]["limit"] == 20
+    assert body["paginacao"]["offset"] == 0
+    assert body["paginacao"]["has_next"] is False
+    assert len(body["items"]) == 1
+    assert body["items"][0]["descricao"] == "Streaming mensal"
+    assert body["items"][0]["forma_pagamento"] == "credito"
 
 
 def test_buscar_despesa_por_id_deve_retornar_200_para_id_existente(
@@ -183,7 +192,7 @@ def test_criar_despesa_deve_retornar_422_para_payload_invalido(client: TestClien
     assert response.status_code == 422
 
 
-def test_listar_despesas_deve_retornar_500_para_periodo_invalido(client: TestClient) -> None:
+def test_listar_despesas_deve_retornar_422_para_periodo_invalido(client: TestClient) -> None:
     response = client.get(
         "/despesas",
         params={
@@ -192,7 +201,7 @@ def test_listar_despesas_deve_retornar_500_para_periodo_invalido(client: TestCli
         },
     )
 
-    assert response.status_code == 500
+    assert response.status_code == 422
 
 
 def test_atualizar_despesa_deve_retornar_422_quando_payload_vazio(
