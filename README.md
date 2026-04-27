@@ -79,6 +79,9 @@ Variaveis disponiveis:
 
 - `FRONTEND_ORIGINS`: origens permitidas no CORS, separadas por virgula.
   Exemplo: `http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174`
+- `ALLOWED_HOSTS`: hosts permitidos pela API.
+  Exemplo: `localhost,127.0.0.1,testserver`
+- `LOG_LEVEL`: nivel de log (`DEBUG`, `INFO`, `WARNING`, `ERROR`).
 
 > O arquivo `.env` esta no `.gitignore` para evitar versionamento de dados sensiveis.
 
@@ -116,6 +119,40 @@ Documentacao interativa:
 - logs estruturados
 - ajustes de seguranca basica (CORS, cabecalhos, etc.)
 - pipeline simples de CI para testes e lint
+
+## Contrato de listagem (paginacao)
+
+`GET /despesas` retorna:
+
+```json
+{
+  "items": [
+    {
+      "id": "uuid",
+      "descricao": "string",
+      "valor": "10.50",
+      "data_transacao": "2026-04-27",
+      "categoria": "string",
+      "forma_pagamento": "credito"
+    }
+  ],
+  "paginacao": {
+    "total": 1,
+    "limit": 20,
+    "offset": 0,
+    "has_next": false
+  }
+}
+```
+
+## Qualidade (lint e testes)
+
+```bash
+ruff check .
+pytest -q
+```
+
+O pipeline de CI roda automaticamente em push e pull request em `.github/workflows/ci.yml`.
 
 ### v1.0.0 - Release estavel
 

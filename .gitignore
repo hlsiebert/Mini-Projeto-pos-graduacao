@@ -29,9 +29,15 @@ ENV/
 # Tests / coverage
 # =========================================================
 .pytest_cache/
+.pytest_tmp/
 .coverage
 .coverage.*
 htmlcov/
+tests/.tmp/
+test_*.db
+tests_temp.db
+tmp*/
+pytest-cache-files-*/
 
 # =========================================================
 # Logs and local runtime files
