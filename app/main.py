@@ -7,8 +7,10 @@ from uuid import uuid4
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Response
+from fastapi.middleware import Middleware
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.routes import router as despesas_router
 
@@ -57,15 +59,31 @@ def _get_allowed_origins() -> list[str]:
     return [origin.strip() for origin in origins_env.split(",") if origin.strip()]
 
 
+def _get_allowed_hosts() -> list[str]:
+    hosts_env = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,testserver")
+    return [host.strip() for host in hosts_env.split(",") if host.strip()]
+
+
 _configure_logging()
 
-app = FastAPI(title="Gerenciador de Despesas API")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_get_allowed_origins(),
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+app = FastAPI(
+    title="Gerenciador de Despesas API",
+    middleware=[
+        Middleware(
+            CORSMiddleware,
+            allow_origins=_get_allowed_origins(),
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            allow_headers=[
+                "Accept",
+                "Authorization",
+                "Content-Type",
+                "X-Requested-With",
+                "X-Request-ID",
+            ],
+        ),
+        Middleware(TrustedHostMiddleware, allowed_hosts=_get_allowed_hosts()),
+    ],
 )
 app.include_router(despesas_router)
 
@@ -76,6 +94,13 @@ async def request_context_and_security_headers(request: Request, call_next) -> R
     started = time.perf_counter()
 
     response = await call_next(request)
+
+    response.headers["X-Request-ID"] = request_id
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Cache-Control"] = "no-store"
 
     duration_ms = round((time.perf_counter() - started) * 1000, 2)
     logger.info(

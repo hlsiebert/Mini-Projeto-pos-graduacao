@@ -204,6 +204,13 @@ def test_listar_despesas_deve_retornar_422_para_periodo_invalido(client: TestCli
     assert response.status_code == 422
 
 
+def test_request_deve_retornar_request_id_no_header(client: TestClient) -> None:
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert "x-request-id" in response.headers
+
+
 def test_atualizar_despesa_deve_retornar_422_quando_payload_vazio(
     client: TestClient, payload_despesa: dict[str, str | float]
 ) -> None:
